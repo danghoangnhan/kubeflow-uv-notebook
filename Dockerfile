@@ -129,11 +129,14 @@ WORKDIR /home/${NB_USER}
 RUN uv python install 3.11 && \
     uv python pin 3.11
 
-# Install JupyterLab via UV (without --system to avoid managed Python issue)
-RUN uv pip install jupyterlab ipykernel notebook
-
-# Create Jupyter config directory
+# Create Jupyter config directory first
 RUN mkdir -p /home/${NB_USER}/.jupyter
+
+# Install JupyterLab into a virtual environment via UV
+USER ${NB_USER}
+WORKDIR /home/${NB_USER}
+RUN uv venv && uv pip install jupyterlab ipykernel notebook
+USER root
 
 # -----------------------------
 # Install VS Code Extensions
