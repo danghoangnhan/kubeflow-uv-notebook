@@ -100,7 +100,7 @@ RUN curl -sSL https://github.com/just-containers/s6-overlay/releases/download/${
 # -----------------------------
 RUN groupadd -f -g ${NB_GID} users && \
     useradd -m -u ${NB_UID} -g ${NB_GID} -s /bin/bash ${NB_USER} && \
-    mkdir -p /home/${NB_USER}/.local/bin /home/${NB_USER}/.local/share /home/${NB_USER}/project && \
+    mkdir -p /home/${NB_USER}/.local/bin /home/${NB_USER}/.local/share /home/${NB_USER}/.cache /home/${NB_USER}/project && \
     chown -R ${NB_USER}:users /home/${NB_USER}
 
 # -----------------------------
