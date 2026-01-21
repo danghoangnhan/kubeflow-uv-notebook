@@ -1,0 +1,70 @@
+#!/usr/bin/with-contenv bash
+# =============================================================================
+# s6-overlay initialization script
+# Configures environment for Kubeflow notebook compatibility
+# =============================================================================
+
+set -e
+
+echo "[cont-init.d] Configuring environment for jovyan user..."
+
+# Ensure home directory exists and has correct permissions
+if [ ! -d "${HOME}" ]; then
+    echo "[cont-init.d] Creating home directory: ${HOME}"
+    mkdir -p "${HOME}"
+fi
+
+# Ensure project directory exists
+if [ ! -d "${HOME}/project" ]; then
+    echo "[cont-init.d] Creating project directory: ${HOME}/project"
+    mkdir -p "${HOME}/project"
+fi
+
+# Ensure code-server extensions directory exists
+if [ ! -d "${HOME}/.local/share/code-server/extensions" ]; then
+    echo "[cont-init.d] Creating code-server extensions directory"
+    mkdir -p "${HOME}/.local/share/code-server/extensions"
+fi
+
+# Fix permissions on home directory (important for PVC mounts)
+echo "[cont-init.d] Setting permissions on ${HOME}"
+chown -R ${NB_UID}:${NB_GID} "${HOME}" 2>/dev/null || true
+
+# Log NB_PREFIX if set (Kubeflow sets this at runtime)
+if [ -n "${NB_PREFIX}" ]; then
+    echo "[cont-init.d] NB_PREFIX is set to: ${NB_PREFIX}"
+else
+    echo "[cont-init.d] NB_PREFIX is not set (normal for local testing)"
+fi
+
+# Log environment info
+echo "[cont-init.d] User: $(whoami)"
+echo "[cont-init.d] UID: $(id -u)"
+echo "[cont-init.d] GID: $(id -g)"
+echo "[cont-init.d] Home: ${HOME}"
+echo "[cont-init.d] Working directory: $(pwd)"
+
+# Check if GPU is available
+if command -v nvidia-smi &> /dev/null; then
+    echo "[cont-init.d] GPU detected:"
+    nvidia-smi --query-gpu=name,driver_version,memory.total --format=csv,noheader || true
+else
+    echo "[cont-init.d] No GPU detected (or nvidia-smi not available)"
+fi
+
+# Check UV
+echo "[cont-init.d] UV version: $(uv --version 2>&1 || echo 'UV not found')"
+
+# Check UV-managed Python versions
+echo "[cont-init.d] UV Python versions:"
+uv python list 2>&1 || echo "[cont-init.d] No Python versions installed via UV"
+
+# Show quick start help
+echo "[cont-init.d] ─────────────────────────────────────────────"
+echo "[cont-init.d] Quick Start with UV:"
+echo "[cont-init.d]   Install packages: uv pip install pandas numpy torch"
+echo "[cont-init.d]   Install Python:   uv python install 3.12"
+echo "[cont-init.d]   Create venv:      uv venv myenv && source myenv/bin/activate"
+echo "[cont-init.d] ─────────────────────────────────────────────"
+
+echo "[cont-init.d] Environment configuration complete!"
