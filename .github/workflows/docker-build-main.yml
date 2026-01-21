@@ -46,16 +46,18 @@ jobs:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
-      - name: Build Docker image
+      - name: Build Docker image (base variant)
         uses: docker/build-push-action@v5
         with:
           context: .
           file: ./Dockerfile
           push: ${{ github.event_name == 'push' }}
           tags: |
-            ${{ env.REGISTRY_IMAGE }}:${{ steps.meta.outputs.version }}
-            ${{ env.REGISTRY_IMAGE }}:${{ steps.meta.outputs.short_sha }}
-            ${{ env.REGISTRY_IMAGE }}:latest
+            ${{ env.REGISTRY_IMAGE }}:${{ steps.meta.outputs.version }}-cuda12.2-base
+            ${{ env.REGISTRY_IMAGE }}:${{ steps.meta.outputs.short_sha }}-cuda12.2-base
+            ${{ env.REGISTRY_IMAGE }}:latest-cuda12.2-base
+          build-args: |
+            CUDA_FLAVOR=base
           labels: |
             org.opencontainers.image.title=code-server-astraluv
             org.opencontainers.image.description=GPU-enabled Kubeflow notebook with UV and VS Code Server
@@ -84,10 +86,10 @@ jobs:
           SHORT_SHA=$(git rev-parse --short HEAD)
           echo "short_sha=${SHORT_SHA}" >> $GITHUB_OUTPUT
 
-      - name: Run Trivy vulnerability scanner
+      - name: Run Trivy vulnerability scanner (base variant)
         uses: aquasecurity/trivy-action@master
         with:
-          image-ref: ${{ env.REGISTRY_IMAGE }}:${{ steps.meta.outputs.short_sha }}
+          image-ref: ${{ env.REGISTRY_IMAGE }}:${{ steps.meta.outputs.short_sha }}-cuda12.2-base
           format: 'sarif'
           output: 'trivy-results.sarif'
           severity: 'CRITICAL,HIGH'
@@ -100,7 +102,7 @@ jobs:
       - name: Run Trivy in table format
         uses: aquasecurity/trivy-action@master
         with:
-          image-ref: ${{ env.REGISTRY_IMAGE }}:${{ steps.meta.outputs.short_sha }}
+          image-ref: ${{ env.REGISTRY_IMAGE }}:${{ steps.meta.outputs.short_sha }}-cuda12.2-base
           format: 'table'
           output: 'trivy-results.txt'
 

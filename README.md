@@ -18,7 +18,13 @@ This is a **minimal base image** - no Python packages are pre-installed. Users i
   - Install packages: `uv pip install torch pandas numpy`
   - Manage Python versions: `uv python install 3.12`
   - Create virtual environments: `uv venv myenv`
-- **VS Code Server**: Full-featured code-server interface on port 8888
+- **Dual IDE Interfaces**:
+  - **VS Code Server** (port 8888): Full-featured code-server interface
+  - **JupyterLab** (port 8889): Interactive notebook interface (optional, user can install)
+- **CUDA Variants**: Choose the right CUDA image for your needs
+  - `base`: Minimal CUDA runtime (smallest, ~2GB)
+  - `runtime`: Full CUDA runtime (default, ~10GB)
+  - `devel`: Development toolkit with nvcc compiler (largest, ~12GB)
 - **Kubeflow Compliant**:
   - `jovyan` user (UID 1000, GID 100)
   - Port 8888 exposure
@@ -31,17 +37,17 @@ This is a **minimal base image** - no Python packages are pre-installed. Users i
 ### Pull from Docker Hub
 
 ```bash
-docker pull danieldu28121999/kubeflow-notebook-uv:latest
+docker pull danieldu28121999/code-server-astraluv:latest
 ```
 
 ### Run Locally
 
 ```bash
 # CPU
-docker run -p 8888:8888 danieldu28121999/kubeflow-notebook-uv:latest
+docker run -p 8888:8888 danieldu28121999/code-server-astraluv:latest
 
 # GPU
-docker run --gpus all -p 8888:8888 danieldu28121999/kubeflow-notebook-uv:latest
+docker run --gpus all -p 8888:8888 danieldu28121999/code-server-astraluv:latest
 ```
 
 Access code-server at [http://localhost:8888](http://localhost:8888)
@@ -67,6 +73,58 @@ kubectl apply -f kubeflow/notebook.yaml
 
 # GPU-enabled notebook
 kubectl apply -f kubeflow/notebook-gpu.yaml
+```
+
+## Image Variants
+
+All image variants use **Python 3.11** with **CUDA 12.2** and include both code-server and JupyterLab support.
+
+### CUDA Flavor Variants
+
+Choose based on your use case:
+
+| Variant | Size | Use Case | Tag Suffix |
+|---------|------|----------|-----------|
+| **base** | ~8GB | Minimal CUDA runtime, no compiler | `-cuda12.2-base` |
+| **runtime** | ~10GB | Full CUDA runtime (default) | `-cuda12.2-runtime` |
+| **devel** | ~12GB | Development toolkit with nvcc compiler | `-cuda12.2-devel` |
+
+**Examples:**
+```bash
+# Use base variant (smallest)
+docker pull danieldu28121999/code-server-astraluv:latest-cuda12.2-base
+
+# Use runtime variant (default)
+docker pull danieldu28121999/code-server-astraluv:latest-cuda12.2-runtime
+
+# Use devel variant (for building CUDA extensions)
+docker pull danieldu28121999/code-server-astraluv:latest-cuda12.2-devel
+```
+
+## Dual IDE Support
+
+The image includes **both** VS Code Server and JupyterLab running simultaneously:
+
+### VS Code Server (code-server)
+- **Port**: 8888
+- **URL**: `http://localhost:8888`
+- **Best for**: Full IDE experience, integrated terminal, extensions
+- **Status**: Enabled by default
+
+### JupyterLab
+- **Port**: 8889
+- **URL**: `http://localhost:8889`
+- **Best for**: Interactive notebooks, data exploration, visualization
+- **Installation**: `uv pip install jupyterlab` (already installed in image)
+
+**Using both simultaneously:**
+```bash
+docker run -p 8888:8888 -p 8889:8889 --gpus all \
+  danieldu28121999/code-server-astraluv:latest
+
+# Now access both:
+# - code-server: http://localhost:8888
+# - JupyterLab: http://localhost:8889
 ```
 
 ## Using Astral UV
@@ -179,7 +237,7 @@ spec:
     spec:
       containers:
       - name: notebook
-        image: danieldu28121999/kubeflow-notebook-uv:latest
+        image: danieldu28121999/code-server-astraluv:latest
         resources:
           requests:
             memory: "4Gi"
@@ -199,7 +257,7 @@ spec:
     spec:
       containers:
       - name: notebook
-        image: danieldu28121999/kubeflow-notebook-uv:latest
+        image: danieldu28121999/code-server-astraluv:latest
         resources:
           requests:
             memory: "8Gi"
@@ -262,7 +320,7 @@ pytest tests/test_gpu.py -v -m gpu
 
 ```bash
 # Start container
-docker run -d --name test -p 8888:8888 danieldu28121999/kubeflow-notebook-uv:latest
+docker run -d --name test -p 8888:8888 danieldu28121999/code-server-astraluv:latest
 
 # Check UV
 docker exec test uv --version

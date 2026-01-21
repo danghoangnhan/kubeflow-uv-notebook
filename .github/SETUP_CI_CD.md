@@ -31,16 +31,52 @@ In your GitHub repository:
 
 ## Step 3: Verify Workflow Setup
 
-The workflow file `.github/workflows/build-and-push.yml` is already configured to:
+Both workflows are configured with proper security permissions for SARIF uploads:
+- ✅ `contents: read` — allows reading the repository
+- ✅ `security-events: write` — required for uploading vulnerability scan results to GitHub Security tab
+- ✅ `github/codeql-action/upload-sarif@v4` — latest stable version for SARIF uploads
 
+You have two workflows available:
+
+### Workflow 1: `build-and-push.yml` (Release/Tag-based)
 - **Trigger:** On any git tag pushed (`v*` pattern, e.g., `v1.0.0`, `v1.2.3`)
 - **Build:** Creates a Docker image with semantic versioning tags
 - **Scan:** Runs Trivy vulnerability scanning
 - **Push:** Uploads to Docker Hub
+- **Use case:** Production releases
+
+### Workflow 2: `docker-build-main.yml` (Continuous builds on main)
+- **Trigger:** On push to `main` branch, pull requests, or manual workflow dispatch
+- **Build:** Creates a Docker image with date + commit hash tags
+- **Tagging:** `YYYYMMDD-shortsha`, `shortsha`, and `latest`
+- **Scan:** Runs Trivy vulnerability scanning on pushed images
+- **Push:** Uploads to Docker Hub on main branch pushes
+- **Use case:** Development/testing, automatic builds on every commit
 
 ## Step 4: Test the Pipeline
 
-### Option A: Using Git Tags (Recommended for Production)
+### Option A: Continuous Integration (Recommended for Development)
+
+Simply push to the `main` branch:
+
+```bash
+# Make changes, commit, and push
+git add .
+git commit -m "Your changes"
+git push origin main
+```
+
+GitHub Actions will automatically:
+1. Build the Docker image
+2. Tag it with:
+   - `YYYYMMDD-shortsha` (e.g., `20250121-a1b2c3d`)
+   - `shortsha` (e.g., `a1b2c3d`)
+   - `latest`
+3. Scan for vulnerabilities with Trivy
+4. Push all tags to Docker Hub
+5. Post results to GitHub Security tab
+
+### Option B: Production Release (Using Git Tags)
 
 ```bash
 # Make changes, commit, then create a semantic version tag
@@ -48,21 +84,22 @@ git tag v1.0.0
 git push origin v1.0.0
 ```
 
-GitHub Actions will automatically:
+The `build-and-push.yml` workflow will:
 1. Build the image
-2. Tag it as `your-username/code-server-astraluv:v1.0.0`
-3. Tag it as `your-username/code-server-astraluv:1.0.0` (semver)
-4. Tag it as `your-username/code-server-astraluv:1.0` (major.minor)
-5. Tag it as `your-username/code-server-astraluv:latest`
-6. Scan for vulnerabilities with Trivy
-7. Push all tags to Docker Hub
+2. Tag it as:
+   - `your-username/code-server-astraluv:v1.0.0`
+   - `your-username/code-server-astraluv:1.0.0` (semver)
+   - `your-username/code-server-astraluv:1.0` (major.minor)
+   - `your-username/code-server-astraluv:latest`
+3. Scan for vulnerabilities with Trivy
+4. Push all tags to Docker Hub
 
-### Option B: Manual Trigger (For Testing)
+### Option C: Manual Trigger (For Testing)
 
 1. Go to **Actions** tab in GitHub
-2. Select **Build and Push Docker Image** workflow
+2. Select either workflow
 3. Click **Run workflow**
-4. Enter a tag (or leave empty for default)
+4. Workflow runs with default settings
 
 ## Step 5: Monitor the Build
 
@@ -90,8 +127,7 @@ export DOCKER_PASSWORD="your-docker-hub-token"  # Or use docker login first
 
 ## Image Tagging Strategy
 
-The workflow automatically creates multiple tags for semantic versioning:
-
+### Tags from `build-and-push.yml` (Tag-based releases):
 ```
 docker.io/your-username/code-server-astraluv:v1.2.3     # Full tag
 docker.io/your-username/code-server-astraluv:1.2.3      # Semver
@@ -99,7 +135,17 @@ docker.io/your-username/code-server-astraluv:1.2        # Major.minor
 docker.io/your-username/code-server-astraluv:latest     # Latest
 ```
 
-Use `latest` for quick prototyping, specific versions for production deployments.
+### Tags from `docker-build-main.yml` (Main branch builds):
+```
+docker.io/your-username/code-server-astraluv:20250121-a1b2c3d  # Date + commit
+docker.io/your-username/code-server-astraluv:a1b2c3d           # Short commit hash
+docker.io/your-username/code-server-astraluv:latest             # Latest
+```
+
+**Recommendation:**
+- Use specific version tags from releases for production deployments
+- Use `latest` tag for development/testing environments
+- Use commit hash tags for debugging specific builds
 
 ## Security Scanning with Trivy
 
@@ -113,6 +159,52 @@ Results are:
 3. Available in the workflow artifacts
 
 Review security findings before production deployment.
+
+### SARIF Upload Best Practices
+
+Both workflows use **`github/codeql-action/upload-sarif@v4`** with best practices:
+
+#### Permissions Required
+```yaml
+permissions:
+  contents: read          # Allow reading the repository
+  security-events: write  # Required for SARIF upload to GitHub Security tab
+```
+
+Both workflows include these permissions, ensuring SARIF results are properly uploaded.
+
+#### Token Handling for Private Repos & Forks
+
+**Default behavior (GITHUB_TOKEN):**
+- Works for pushes to the main repository
+- SARIF upload may fail on pull requests from forks (read-only token)
+
+**For fork support or private repos:**
+
+If you need SARIF results on PRs from forks, create a Personal Access Token (PAT):
+
+1. Go to **GitHub Settings** → **Developer settings** → **Personal access tokens**
+2. Click **Generate new token (classic)**
+3. Grant scopes:
+   - `repo` (full repository access)
+   - `security_events` (read/write for SARIF uploads)
+4. Copy the token and add it as a repository secret: `PAT_TOKEN`
+5. Update your workflow SARIF upload step:
+   ```yaml
+   - name: Upload Trivy results to GitHub Security tab
+     uses: github/codeql-action/upload-sarif@v4
+     with:
+       sarif_file: 'trivy-results.sarif'
+       token: ${{ secrets.PAT_TOKEN }}
+   ```
+
+**Current configuration:**
+- `docker-build-main.yml` only scans on pushes (`if: github.event_name == 'push'`), avoiding fork token issues
+- `build-and-push.yml` scans after every release tag
+
+For fork PRs, consider:
+- Using a PAT token for full fork support, OR
+- Accepting that fork PRs won't upload to Security tab (safe default)
 
 ## Troubleshooting
 
@@ -128,14 +220,25 @@ Review security findings before production deployment.
 - Address security issues in Dockerfile
 
 ### Workflow Not Triggering
+
+**For `docker-build-main.yml` (main branch):**
+- Verify push is to `main` branch (not a different branch)
+- Ensure Actions tab shows the workflow is enabled
+- Check `.github/workflows/docker-build-main.yml` exists and is syntactically correct
+
+**For `build-and-push.yml` (tags):**
 - Check that tags follow `v*` pattern (e.g., `v1.0.0`)
 - Ensure Actions tab shows the workflow is enabled
 - Verify `.github/workflows/build-and-push.yml` is in `main` branch
 
 ### Image Not Pushing
-- Verify Docker Hub credentials are correct
-- Check that `DOCKER_USERNAME` matches your Hub username
-- Ensure repository name in workflow matches your Hub repo
+
+- Verify Docker Hub credentials are correct in **Settings → Secrets and variables → Actions**
+- Check that `DOCKER_USERNAME` matches your Hub username exactly
+- Ensure `DOCKER_PASSWORD` is a personal access token (not your account password)
+- Verify the image repository exists on Docker Hub or enable auto-creation
+- Check GitHub Actions logs for authentication errors
+- Test credentials locally: `docker login -u your-username`
 
 ## Advanced Configuration
 

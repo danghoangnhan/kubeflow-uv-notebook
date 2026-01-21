@@ -13,6 +13,7 @@
 # Build Arguments
 # -----------------------------
 ARG CUDA_VERSION=12.2.0
+ARG CUDA_FLAVOR=base
 ARG UBUNTU_VERSION=22.04
 ARG CODE_SERVER_VERSION=4.96.2
 ARG S6_VERSION=v3.1.6.2
@@ -26,9 +27,10 @@ FROM ghcr.io/astral-sh/uv:${UV_VERSION} AS uv
 # -----------------------------
 # Stage 2: Main image
 # -----------------------------
-FROM nvidia/cuda:${CUDA_VERSION}-base-ubuntu${UBUNTU_VERSION}
+FROM nvidia/cuda:${CUDA_VERSION}-${CUDA_FLAVOR}-ubuntu${UBUNTU_VERSION}
 
 # Re-declare ARGs after FROM
+ARG CUDA_FLAVOR
 ARG CODE_SERVER_VERSION
 ARG S6_VERSION
 
@@ -38,7 +40,7 @@ ARG S6_VERSION
 LABEL maintainer="danieldu28121999"
 LABEL description="GPU-enabled Kubeflow notebook with UV and VS Code Server - minimal image, install packages via UV"
 LABEL version="1.0.0"
-LABEL org.opencontainers.image.source="https://github.com/danieldu28121999/kubeflow-notebook-uv"
+LABEL org.opencontainers.image.source="https://github.com/danghoangnhan/kubeflow-notebook-uv"
 LABEL org.opencontainers.image.licenses="MIT"
 
 # -----------------------------
@@ -127,6 +129,12 @@ WORKDIR /home/${NB_USER}
 RUN uv python install 3.11 && \
     uv python pin 3.11
 
+# Install JupyterLab via UV (without --system to avoid managed Python issue)
+RUN uv pip install jupyterlab ipykernel notebook
+
+# Create Jupyter config directory
+RUN mkdir -p /home/${NB_USER}/.jupyter
+
 # -----------------------------
 # Install VS Code Extensions
 # -----------------------------
@@ -145,13 +153,16 @@ USER root
 COPY --chown=${NB_USER}:users s6/ /etc/
 
 # Make s6 scripts executable
-RUN chmod +x /etc/cont-init.d/* /etc/services.d/code-server/*
+RUN chmod +x /etc/cont-init.d/* /etc/services.d/code-server/* /etc/services.d/jupyterlab/* 2>/dev/null || true
 
 # Create code-server config directory
 RUN mkdir -p /etc/code-server && chown ${NB_USER}:users /etc/code-server
 
 # Copy code-server configuration
 COPY --chown=${NB_USER}:users config/code-server-config.yaml /etc/code-server/config.yaml
+
+# Copy Jupyter configuration
+COPY --chown=${NB_USER}:users config/jupyter_lab_config.py /home/${NB_USER}/.jupyter/
 
 # -----------------------------
 # Setup Kubeflow Notebook Compatibility
@@ -168,7 +179,7 @@ WORKDIR /home/${NB_USER}/project
 # -----------------------------
 # Expose Kubeflow Port
 # -----------------------------
-EXPOSE 8888
+EXPOSE 8888 8889
 
 # -----------------------------
 # Health Check

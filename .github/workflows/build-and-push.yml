@@ -15,6 +15,9 @@ jobs:
     permissions:
       contents: read
       packages: write
+    strategy:
+      matrix:
+        cuda_flavor: [base, runtime, devel]
 
     steps:
       - name: Checkout repository
@@ -35,10 +38,10 @@ jobs:
         with:
           images: ${{ env.REGISTRY_IMAGE }}
           tags: |
-            type=ref,event=tag
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
-            type=raw,value=latest,enable={{is_default_branch}}
+            type=ref,event=tag,suffix=-cuda12.2-${{ matrix.cuda_flavor }}
+            type=semver,pattern={{version}},suffix=-cuda12.2-${{ matrix.cuda_flavor }}
+            type=semver,pattern={{major}}.{{minor}},suffix=-cuda12.2-${{ matrix.cuda_flavor }}
+            type=raw,value=latest-cuda12.2-${{ matrix.cuda_flavor }},enable={{is_default_branch}}
 
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
@@ -47,6 +50,8 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            CUDA_FLAVOR=${{ matrix.cuda_flavor }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -61,10 +66,10 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Run Trivy vulnerability scanner
+      - name: Run Trivy vulnerability scanner (base variant)
         uses: aquasecurity/trivy-action@master
         with:
-          image-ref: ${{ secrets.DOCKER_USERNAME }}/code-server-astraluv:latest
+          image-ref: ${{ secrets.DOCKER_USERNAME }}/code-server-astraluv:latest-cuda12.2-base
           format: 'sarif'
           output: 'trivy-results.sarif'
           severity: 'CRITICAL,HIGH'
@@ -77,12 +82,12 @@ jobs:
       - name: Run Trivy in table format
         uses: aquasecurity/trivy-action@master
         with:
-          image-ref: ${{ secrets.DOCKER_USERNAME }}/code-server-astraluv:latest
+          image-ref: ${{ secrets.DOCKER_USERNAME }}/code-server-astraluv:latest-cuda12.2-base
           format: 'table'
           output: 'trivy-results.txt'
 
       - name: Comment on workflow run
         if: always()
         run: |
-          echo "## Trivy Scan Results" >> $GITHUB_STEP_SUMMARY
+          echo "## Trivy Scan Results (base variant)" >> $GITHUB_STEP_SUMMARY
           cat trivy-results.txt >> $GITHUB_STEP_SUMMARY
