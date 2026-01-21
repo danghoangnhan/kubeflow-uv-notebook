@@ -1,0 +1,170 @@
+#!/bin/bash
+set -e
+
+# Test script for code-server-astraluv builds
+# Validates build, container startup, and service availability
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
+
+# Configuration
+VARIANTS=("base" "runtime" "devel")
+TEST_VERSION="test-$(date +%s)"
+IMAGE_NAME="danieldu28121999/code-server-astraluv"
+TIMEOUT=120
+
+echo -e "${BLUE}╔════════════════════════════════════════════╗${NC}"
+echo -e "${BLUE}║   Testing code-server-astraluv Builds    ║${NC}"
+echo -e "${BLUE}╚════════════════════════════════════════════╝${NC}"
+echo ""
+
+# Function to test build
+test_build() {
+    local variant=$1
+    echo -e "${YELLOW}[BUILD] Testing ${variant} variant...${NC}"
+
+    if ./scripts/build.sh "${TEST_VERSION}" --cuda-flavor "${variant}"; then
+        echo -e "${GREEN}✓ Build succeeded (${variant})${NC}"
+        return 0
+    else
+        echo -e "${RED}✗ Build failed (${variant})${NC}"
+        return 1
+    fi
+}
+
+# Function to test container startup
+test_container() {
+    local variant=$1
+    local container_name="test-${variant}-$$"
+
+    echo -e "${YELLOW}[CONTAINER] Starting ${variant} variant...${NC}"
+
+    # Run container in background
+    if docker run -d \
+        --name "${container_name}" \
+        -p 8888:8888 \
+        -p 8889:8889 \
+        "${IMAGE_NAME}:${TEST_VERSION}-cuda12.2-${variant}" > /dev/null 2>&1; then
+
+        echo -e "${GREEN}✓ Container started (${variant})${NC}"
+
+        # Wait for services to be ready
+        echo -e "${YELLOW}[SERVICES] Waiting for services to be ready...${NC}"
+        local elapsed=0
+        local code_server_ready=0
+        local jupyter_ready=0
+
+        while [ $elapsed -lt $TIMEOUT ]; do
+            # Check code-server
+            if docker exec "${container_name}" curl -s http://localhost:8888/ > /dev/null 2>&1; then
+                code_server_ready=1
+                echo -e "${GREEN}✓ code-server ready on port 8888${NC}"
+            fi
+
+            # Check JupyterLab
+            if docker exec "${container_name}" curl -s http://localhost:8889/ > /dev/null 2>&1; then
+                jupyter_ready=1
+                echo -e "${GREEN}✓ JupyterLab ready on port 8889${NC}"
+            fi
+
+            if [ $code_server_ready -eq 1 ] && [ $jupyter_ready -eq 1 ]; then
+                break
+            fi
+
+            sleep 5
+            elapsed=$((elapsed + 5))
+        done
+
+        if [ $code_server_ready -eq 0 ]; then
+            echo -e "${RED}✗ code-server did not become ready${NC}"
+            docker logs "${container_name}" | tail -20
+        fi
+
+        if [ $jupyter_ready -eq 0 ]; then
+            echo -e "${RED}✗ JupyterLab did not become ready${NC}"
+            docker logs "${container_name}" | tail -20
+        fi
+
+        # Run basic tests
+        echo -e "${YELLOW}[TESTS] Running basic tests in container...${NC}"
+
+        # Test UV installation
+        if docker exec "${container_name}" uv --version > /dev/null 2>&1; then
+            echo -e "${GREEN}✓ UV installed${NC}"
+        else
+            echo -e "${RED}✗ UV not found${NC}"
+        fi
+
+        # Test Python
+        if docker exec "${container_name}" python --version > /dev/null 2>&1; then
+            echo -e "${GREEN}✓ Python installed${NC}"
+        else
+            echo -e "${RED}✗ Python not found${NC}"
+        fi
+
+        # Test s6-overlay
+        if docker exec "${container_name}" pgrep -f s6-svscan > /dev/null 2>&1; then
+            echo -e "${GREEN}✓ s6-overlay running${NC}"
+        else
+            echo -e "${RED}✗ s6-overlay not running${NC}"
+        fi
+
+        # Cleanup
+        docker stop "${container_name}" > /dev/null 2>&1
+        docker rm "${container_name}" > /dev/null 2>&1
+
+        echo -e "${GREEN}✓ Container test passed (${variant})${NC}"
+        return 0
+    else
+        echo -e "${RED}✗ Failed to start container (${variant})${NC}"
+        docker rm "${container_name}" > /dev/null 2>&1 || true
+        return 1
+    fi
+}
+
+# Check Docker is running
+if ! docker info > /dev/null 2>&1; then
+    echo -e "${RED}✗ Docker is not running${NC}"
+    exit 1
+fi
+
+echo -e "${BLUE}Testing all CUDA variants...${NC}"
+echo ""
+
+# Test each variant
+failed_variants=()
+for variant in "${VARIANTS[@]}"; do
+    echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    if ! test_build "${variant}"; then
+        failed_variants+=("${variant}")
+        continue
+    fi
+    echo ""
+
+    if ! test_container "${variant}"; then
+        failed_variants+=("${variant}")
+    fi
+    echo ""
+done
+
+# Summary
+echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+echo ""
+echo -e "${BLUE}Test Summary:${NC}"
+
+if [ ${#failed_variants[@]} -eq 0 ]; then
+    echo -e "${GREEN}✓ All tests passed!${NC}"
+    echo ""
+    echo -e "${BLUE}Built images:${NC}"
+    for variant in "${VARIANTS[@]}"; do
+        docker images "${IMAGE_NAME}:${TEST_VERSION}-cuda12.2-${variant}" --format "  {{.Repository}}:{{.Tag}} ({{.Size}})"
+    done
+    exit 0
+else
+    echo -e "${RED}✗ Tests failed for: ${failed_variants[*]}${NC}"
+    exit 1
+fi

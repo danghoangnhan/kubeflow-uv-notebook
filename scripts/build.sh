@@ -9,11 +9,28 @@ BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
 # Configuration
-IMAGE_NAME="${DOCKER_HUB_USERNAME:-danieldu28121999}/kubeflow-notebook-uv"
+IMAGE_NAME="${DOCKER_HUB_USERNAME:-danieldu28121999}/code-server-astraluv"
 VERSION="${1:-latest}"
 CUDA_VERSION="${CUDA_VERSION:-12.2.0}"
+CUDA_FLAVOR="${CUDA_FLAVOR:-base}"
 UBUNTU_VERSION="${UBUNTU_VERSION:-22.04}"
-PYTHON_VERSION="${PYTHON_VERSION:-3.11}"
+
+# Parse command line arguments
+while [[ $# -gt 1 ]]; do
+  case $2 in
+    --cuda-flavor)
+      CUDA_FLAVOR="$3"
+      shift 2
+      ;;
+    --cuda-version)
+      CUDA_VERSION="$3"
+      shift 2
+      ;;
+    *)
+      shift
+      ;;
+  esac
+done
 
 echo -e "${BLUE}╔════════════════════════════════════════════╗${NC}"
 echo -e "${BLUE}║   Building Kubeflow Notebook Docker Image ║${NC}"
@@ -21,8 +38,9 @@ echo -e "${BLUE}╚════════════════════�
 echo ""
 echo -e "${GREEN}Image:${NC} ${IMAGE_NAME}:${VERSION}"
 echo -e "${GREEN}CUDA Version:${NC} ${CUDA_VERSION}"
+echo -e "${GREEN}CUDA Flavor:${NC} ${CUDA_FLAVOR}"
 echo -e "${GREEN}Ubuntu Version:${NC} ${UBUNTU_VERSION}"
-echo -e "${GREEN}Python Version:${NC} ${PYTHON_VERSION}"
+echo -e "${GREEN}Python Version:${NC} 3.11 (fixed)"
 echo -e "${YELLOW}─────────────────────────────────────────────${NC}"
 echo ""
 
@@ -36,8 +54,9 @@ fi
 echo -e "${BLUE}Building image...${NC}"
 docker build \
   --build-arg CUDA_VERSION="${CUDA_VERSION}" \
+  --build-arg CUDA_FLAVOR="${CUDA_FLAVOR}" \
   --build-arg UBUNTU_VERSION="${UBUNTU_VERSION}" \
-  --build-arg PYTHON_VERSION="${PYTHON_VERSION}" \
+  --tag "${IMAGE_NAME}:${VERSION}-cuda${CUDA_VERSION}-${CUDA_FLAVOR}" \
   --tag "${IMAGE_NAME}:${VERSION}" \
   --tag "${IMAGE_NAME}:latest" \
   --progress=plain \
