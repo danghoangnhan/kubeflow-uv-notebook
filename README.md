@@ -402,9 +402,10 @@ uv pip install <package-name>
 |----------|-------|
 | **Base Image** | nvidia/cuda:12.2.0-base-ubuntu22.04 |
 | **UV Source** | ghcr.io/astral-sh/uv:latest (multi-stage) |
-| **Image Size** | ~3-4 GB (minimal) |
+| **Image Size** | ~9.5 GB (minimal, no pre-installed Python) |
+| **Python** | None pre-installed (install via UV) |
 | **User** | jovyan (UID 1000, GID 100) |
-| **Port** | 8888 |
+| **Port** | 8888 (code-server) |
 | **Entrypoint** | s6-overlay (/init) |
 
 ## Tags
