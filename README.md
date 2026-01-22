@@ -1,5 +1,7 @@
 # Kubeflow Notebook with Astral UV and GPU Support
 
+[![Docker Hub](https://img.shields.io/docker/v/danieldu28121999/code-server-astraluv?label=Docker%20Hub&logo=docker)](https://hub.docker.com/r/danieldu28121999/code-server-astraluv)
+
 A **minimal**, production-ready Docker image for Kubeflow notebooks featuring GPU/CUDA support, Astral UV for fast Python package management, and VS Code Server (code-server).
 
 ## Design Philosophy
@@ -33,6 +35,8 @@ This is a **minimal base image** - no Python packages are pre-installed. Users i
 ## Quick Start
 
 ### Pull from Docker Hub
+
+Pre-built images are available on [Docker Hub](https://hub.docker.com/r/danieldu28121999/code-server-astraluv).
 
 ```bash
 docker pull danieldu28121999/code-server-astraluv:latest
@@ -229,74 +233,6 @@ spec:
 
 See [kubeflow/](./kubeflow/) directory for complete examples.
 
-## Building from Source
-
-### Clone Repository
-
-```bash
-git clone https://github.com/danieldu28121999/kubeflow-notebook-uv.git
-cd kubeflow-notebook-uv
-```
-
-### Build Image
-
-```bash
-./scripts/build.sh v1.0.0
-```
-
-### Test Image
-
-```bash
-# Test basic functionality
-./scripts/test-local.sh
-
-# Test GPU support (requires GPU)
-./scripts/test-gpu.sh
-```
-
-### Push to Registry
-
-```bash
-./scripts/push.sh v1.0.0
-```
-
-## Testing
-
-### Run Python Tests
-
-```bash
-# Install pytest
-pip install pytest pytest-timeout requests
-
-# Run all tests
-pytest tests/ -v
-
-# Run specific test suite
-pytest tests/test_image.py -v
-
-# Run GPU tests (requires GPU)
-pytest tests/test_gpu.py -v -m gpu
-```
-
-### Manual Testing
-
-```bash
-# Start container
-docker run -d --name test -p 8888:8888 danieldu28121999/code-server-astraluv:latest
-
-# Check UV
-docker exec test uv --version
-
-# Check Python versions
-docker exec test uv python list
-
-# Install a package
-docker exec test uv pip install --system requests
-
-# Cleanup
-docker rm -f test
-```
-
 ## GPU Support
 
 ### Install PyTorch with CUDA
@@ -328,37 +264,6 @@ print(f"Computation device: {z.device}")
 - NVIDIA Driver 450.80.02+
 - nvidia-docker2 (for local Docker)
 - NVIDIA GPU Operator (for Kubernetes)
-
-## CI/CD
-
-This project uses GitHub Actions for automated builds and security scanning.
-
-### Workflows
-
-- **Build and Push**: Triggered on push to main/master or version tags
-- **Security Scan**: Weekly vulnerability scanning with Trivy
-
-### Release Process
-
-```bash
-# Create a new release
-git tag -a v1.0.0 -m "Release v1.0.0"
-git push origin v1.0.0
-
-# GitHub Actions will automatically:
-# - Build the image
-# - Tag with v1.0.0, v1.0, v1, latest
-# - Push to Docker Hub
-# - Run security scans
-# - Generate SBOM
-```
-
-### Required Secrets
-
-Configure these in GitHub repository settings:
-
-- `DOCKER_HUB_USERNAME`: Your Docker Hub username
-- `DOCKER_HUB_TOKEN`: Docker Hub access token
 
 ## Troubleshooting
 
@@ -395,18 +300,6 @@ For packages requiring compilation:
 # build-essential is pre-installed
 uv pip install <package-name>
 ```
-
-## Image Details
-
-| Property | Value |
-|----------|-------|
-| **Base Image** | nvidia/cuda:12.2.0-base-ubuntu22.04 |
-| **UV Source** | ghcr.io/astral-sh/uv:latest (multi-stage) |
-| **Image Size** | ~9.5 GB (minimal, no pre-installed Python) |
-| **Python** | None pre-installed (install via UV) |
-| **User** | jovyan (UID 1000, GID 100) |
-| **Port** | 8888 (code-server) |
-| **Entrypoint** | s6-overlay (/init) |
 
 ## Tags
 

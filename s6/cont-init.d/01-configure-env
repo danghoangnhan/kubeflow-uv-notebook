@@ -62,9 +62,10 @@ uv python list 2>&1 || echo "[cont-init.d] No Python versions installed via UV"
 # Show quick start help
 echo "[cont-init.d] ─────────────────────────────────────────────"
 echo "[cont-init.d] Quick Start with UV:"
+echo "[cont-init.d]   Install Python:   uv python install 3.11"
 echo "[cont-init.d]   Install packages: uv pip install pandas numpy torch"
-echo "[cont-init.d]   Install Python:   uv python install 3.12"
 echo "[cont-init.d]   Create venv:      uv venv myenv && source myenv/bin/activate"
+echo "[cont-init.d]   Install optional: uv pip install jupyterlab"
 echo "[cont-init.d] ─────────────────────────────────────────────"
 
 echo "[cont-init.d] Environment configuration complete!"
