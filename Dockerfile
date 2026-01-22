@@ -4,9 +4,10 @@
 # Features: UV (multi-stage), code-server, s6-overlay
 # Kubeflow Compliant: jovyan user, port 8888, NB_PREFIX support
 #
-# NOTE: This is a minimal image. Users install packages via UV:
-#   uv pip install torch pandas numpy jupyterlab
-#   uv python install 3.12  # Install additional Python versions
+# NOTE: This is a truly minimal image. No Python pre-installed.
+# Users install Python and packages as needed via UV:
+#   uv python install 3.12  # Install Python
+#   uv pip install torch pandas numpy  # Install packages
 # =============================================================================
 
 # -----------------------------
@@ -122,21 +123,8 @@ RUN curl -fsSL https://code-server.dev/install.sh | sh -s -- --version=${CODE_SE
 USER ${NB_USER}
 WORKDIR /home/${NB_USER}
 
-# -----------------------------
-# Install Python via UV (user can install additional versions)
-# UV manages Python versions - no need for system Python or Miniconda
-# -----------------------------
-RUN uv python install 3.11 && \
-    uv python pin 3.11
-
-# Create Jupyter config directory first
-RUN mkdir -p /home/${NB_USER}/.jupyter
-
-# Install JupyterLab into a virtual environment via UV
-USER ${NB_USER}
-WORKDIR /home/${NB_USER}
-RUN uv venv && uv pip install jupyterlab ipykernel notebook
-USER root
+# Note: Python is not pre-installed. Users install via UV as needed.
+# This keeps the image minimal and allows users to choose their Python version.
 
 # -----------------------------
 # Install VS Code Extensions
@@ -156,16 +144,13 @@ USER root
 COPY --chown=${NB_USER}:users s6/ /etc/
 
 # Make s6 scripts executable
-RUN chmod +x /etc/cont-init.d/* /etc/services.d/code-server/* /etc/services.d/jupyterlab/* 2>/dev/null || true
+RUN chmod +x /etc/cont-init.d/* /etc/services.d/code-server/* 2>/dev/null || true
 
 # Create code-server config directory
 RUN mkdir -p /etc/code-server && chown ${NB_USER}:users /etc/code-server
 
 # Copy code-server configuration
 COPY --chown=${NB_USER}:users config/code-server-config.yaml /etc/code-server/config.yaml
-
-# Copy Jupyter configuration
-COPY --chown=${NB_USER}:users config/jupyter_lab_config.py /home/${NB_USER}/.jupyter/
 
 # -----------------------------
 # Setup Kubeflow Notebook Compatibility
@@ -181,8 +166,9 @@ WORKDIR /home/${NB_USER}/project
 
 # -----------------------------
 # Expose Kubeflow Port
+# Only code-server is pre-installed. JupyterLab can be installed by users.
 # -----------------------------
-EXPOSE 8888 8889
+EXPOSE 8888
 
 # -----------------------------
 # Health Check
@@ -202,17 +188,20 @@ ENV S6_CMD_WAIT_FOR_SERVICES_MAXTIME=0
 ENTRYPOINT ["/init"]
 
 # =============================================================================
-# USAGE: Install packages via UV
+# USAGE: Install Python and packages via UV
 # =============================================================================
 #
-# Install Python packages:
-#   uv pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu122
-#   uv pip install pandas numpy matplotlib jupyterlab scikit-learn
-#
-# Install additional Python versions:
-#   uv python install 3.12
-#   uv python install 3.10
+# First, install Python:
+#   uv python install 3.11    # or 3.10, 3.12, etc.
 #   uv python list
+#
+# Then install packages:
+#   uv pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu122
+#   uv pip install pandas numpy matplotlib scikit-learn
+#
+# Optional: Install JupyterLab
+#   uv pip install jupyterlab
+#   jupyter lab --ip=0.0.0.0 --port=8889 --no-browser &
 #
 # Create virtual environment:
 #   uv venv myenv
