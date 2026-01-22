@@ -14,10 +14,8 @@ This is a **minimal base image** - no Python packages are pre-installed. Users i
 ## Features
 
 - **GPU Support**: NVIDIA CUDA 12.2 on Ubuntu 22.04
-- **Astral UV**: Lightning-fast Python package manager (from official image)
-  - Install packages: `uv pip install torch pandas numpy`
-  - Manage Python versions: `uv python install 3.12`
-  - Create virtual environments: `uv venv myenv`
+- **Astral UV**: Lightning-fast Python package manager (10-100x faster than pip)
+  - See [official UV documentation](https://docs.astral.sh/uv/) for usage guide
 - **Dual IDE Interfaces**:
   - **VS Code Server** (port 8888): Full-featured code-server interface
   - **JupyterLab** (port 8889): Interactive notebook interface (optional, user can install)
@@ -55,14 +53,10 @@ Access code-server at [http://localhost:8888](http://localhost:8888)
 ### Install Packages (Inside Container)
 
 ```bash
-# Install data science stack
-uv pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu122
-uv pip install pandas numpy matplotlib jupyterlab scikit-learn
+# Install packages using UV (10-100x faster than pip)
+uv pip install pandas numpy matplotlib jupyterlab
 
-# Or create a virtual environment
-uv venv myenv
-source myenv/bin/activate
-uv pip install -r requirements.txt
+# For detailed UV usage, see: https://docs.astral.sh/uv/
 ```
 
 ### Deploy to Kubeflow
@@ -126,62 +120,6 @@ docker run -p 8888:8888 -p 8889:8889 --gpus all \
 # - code-server: http://localhost:8888
 # - JupyterLab: http://localhost:8889
 ```
-
-## Using Astral UV
-
-UV is a lightning-fast Python package installer and resolver, copied from the [official Astral UV image](https://hub.docker.com/r/astral/uv).
-
-### Install Packages
-
-```bash
-# Install packages (system-wide)
-uv pip install --system pandas numpy torch
-
-# Install from requirements.txt
-uv pip install -r requirements.txt
-
-# Install with extras
-uv pip install "fastapi[all]"
-
-# Install from PyTorch index (for CUDA support)
-uv pip install torch torchvision --index-url https://download.pytorch.org/whl/cu122
-```
-
-### Manage Python Versions
-
-```bash
-# List installed Python versions
-uv python list
-
-# Install additional Python versions
-uv python install 3.12
-uv python install 3.10
-
-# Pin project to specific version
-uv python pin 3.12
-```
-
-### Virtual Environments
-
-```bash
-# Create virtual environment (uses pinned Python)
-uv venv myenv
-source myenv/bin/activate
-
-# Create with specific Python version
-uv venv --python 3.12 myenv-312
-source myenv-312/bin/activate
-
-# Install packages in venv
-uv pip install pandas numpy torch
-```
-
-### UV Benefits
-- **10-100x faster** than pip
-- **Better dependency resolution**
-- **Manages Python versions** - no need for pyenv/conda
-- **Compatible with pip** commands
-- **No configuration** needed
 
 ## What's Included
 
@@ -468,7 +406,7 @@ MIT License - see [LICENSE](LICENSE) file for details.
 ## Support
 
 - **Issues**: [GitHub Issues](https://github.com/danieldu28121999/kubeflow-notebook-uv/issues)
-- **Documentation**: See [docs/](./docs/) directory
+- **Documentation**: See [wiki/](./wiki/) directory
 - **Kubeflow Docs**: [Kubeflow Notebooks](https://www.kubeflow.org/docs/components/notebooks/)
 
 ## Acknowledgments
