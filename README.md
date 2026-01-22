@@ -16,9 +16,9 @@ This is a **minimal base image** - no Python packages are pre-installed. Users i
 - **GPU Support**: NVIDIA CUDA 12.2 on Ubuntu 22.04
 - **Astral UV**: Lightning-fast Python package manager (10-100x faster than pip)
   - See [official UV documentation](https://docs.astral.sh/uv/) for usage guide
-- **Dual IDE Interfaces**:
+- **IDE Interface**:
   - **VS Code Server** (port 8888): Full-featured code-server interface
-  - **JupyterLab** (port 8889): Interactive notebook interface (optional, user can install)
+  - **JupyterLab**: Optional - users can install via `uv pip install jupyterlab` if needed
 - **CUDA Variants**: Choose the right CUDA image for your needs
   - `base`: Minimal CUDA runtime (smallest, ~2GB)
   - `runtime`: Full CUDA runtime (default, ~10GB)
@@ -50,11 +50,18 @@ docker run --gpus all -p 8888:8888 danieldu28121999/code-server-astraluv:latest
 
 Access code-server at [http://localhost:8888](http://localhost:8888)
 
-### Install Packages (Inside Container)
+### Install Python and Packages (Inside Container)
 
 ```bash
+# First, install Python (any version you need)
+uv python install 3.11
+
 # Install packages using UV (10-100x faster than pip)
-uv pip install pandas numpy matplotlib jupyterlab
+uv pip install pandas numpy matplotlib
+
+# Optional: Install JupyterLab if you need interactive notebooks
+uv pip install jupyterlab
+jupyter lab --ip=0.0.0.0 --port=8889 --no-browser &
 
 # For detailed UV usage, see: https://docs.astral.sh/uv/
 ```
@@ -95,28 +102,41 @@ docker pull danieldu28121999/code-server-astraluv:latest-cuda12.2-runtime
 docker pull danieldu28121999/code-server-astraluv:latest-cuda12.2-devel
 ```
 
-## Dual IDE Support
+## IDE Support
 
-The image includes **both** VS Code Server and JupyterLab running simultaneously:
+The image includes **VS Code Server** (code-server) by default:
 
 ### VS Code Server (code-server)
 - **Port**: 8888
 - **URL**: `http://localhost:8888`
-- **Best for**: Full IDE experience, integrated terminal, extensions
+- **Best for**: Full IDE experience, integrated terminal, extensions, Python development
 - **Status**: Enabled by default
 
-### JupyterLab
-- **Port**: 8889
-- **URL**: `http://localhost:8889`
-- **Best for**: Interactive notebooks, data exploration, visualization
-- **Installation**: `uv pip install jupyterlab` (already installed in image)
+### JupyterLab (Optional)
+If you need interactive notebooks, install JupyterLab inside the container:
 
-**Using both simultaneously:**
+```bash
+# Install Python first
+uv python install 3.11
+
+# Install JupyterLab
+uv pip install jupyterlab
+
+# Start JupyterLab on port 8889
+jupyter lab --ip=0.0.0.0 --port=8889 --no-browser &
+```
+
+Then access both simultaneously:
 ```bash
 docker run -p 8888:8888 -p 8889:8889 --gpus all \
   danieldu28121999/code-server-astraluv:latest
 
-# Now access both:
+# In container terminal:
+uv python install 3.11
+uv pip install jupyterlab
+jupyter lab --ip=0.0.0.0 --port=8889 --no-browser &
+
+# Now access:
 # - code-server: http://localhost:8888
 # - JupyterLab: http://localhost:8889
 ```
@@ -130,11 +150,15 @@ docker run -p 8888:8888 -p 8889:8889 --gpus all \
 - build-essential (for compiling packages)
 
 ### Pre-installed
-- **Astral UV** & **uvx** - From official image
-- **Python 3.11** - Managed by UV (install more via `uv python install`)
+- **Astral UV** & **uvx** - From official image, for fast package installation
 - **code-server** (4.96.2) - VS Code in browser
 - **VS Code extensions**: Python, Jupyter
 - **s6-overlay** - Process management
+
+### Not Pre-installed (Install as Needed)
+- **Python** - Install any version via UV: `uv python install 3.11`
+- **JupyterLab** - Install via: `uv pip install jupyterlab`
+- **Python packages** - Install via: `uv pip install <package>`
 
 ## Environment Variables
 
